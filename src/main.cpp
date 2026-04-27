@@ -50,6 +50,19 @@
  * ===========================================================================
  */
 
+void setDataBusInput();
+void setDataBusOutput();
+void setAddress(uint16_t);
+uint8_t readRaw(uint16_t);
+void writeRaw(uint16_t, uint8_t);
+int8_t pageWrite(uint16_t, uint8_t *, uint8_t);
+void SDPUnlock();
+void SDPlock();
+void read(uint16_t, uint16_t);
+void blank(uint16_t, uint16_t);
+void write(uint16_t, uint8_t);
+uint8_t read(uint16_t);
+
 // CORE FUNCTIONS
 void setDataBusInput()
 {
