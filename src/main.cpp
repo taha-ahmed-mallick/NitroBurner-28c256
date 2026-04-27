@@ -157,8 +157,8 @@ void SDPUnlock()
 void SDPlock()
 {
     setDataBusInput();
-    PORTC &= ~(1 << CE); // CE LOW (Active)
-    PORTC |= (1 << WE); // WE HIGH (Inactive)
+    PORTC &= ~(1 << CE);  // CE LOW (Active)
+    PORTC |= (1 << WE);   // WE HIGH (Inactive)
     PORTC &= ~(1 << OE);  // OE LOW (Active)
     delayMicroseconds(1); // to stabilize the bus
     uint8_t data = readRaw(0x0000);
@@ -171,7 +171,7 @@ void SDPlock()
     writeRaw(0x2AAA, 0x55);
     writeRaw(0x5555, 0xA0);
     writeRaw(0x0000, data);
-    delay(11); // tWC = 10ms
+    delay(11);          // tWC = 10ms
     PORTC |= (1 << CE); // CE HIGH (Inactive)
 }
 
@@ -315,7 +315,7 @@ uint8_t read(uint16_t addr)
     PORTC &= ~(1 << OE);  // OE LOW (Active)
     delayMicroseconds(1); // to stabilize the bus
     uint8_t data = readRaw(addr);
-    PORTC |= (1 << CE); // CE HIGH (Inactive)
+    PORTC |= (1 << CE) | (1 << OE); // CE & OE HIGH (Inactive)
     return data;
 }
 
