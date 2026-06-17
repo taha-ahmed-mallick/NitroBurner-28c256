@@ -62,6 +62,7 @@ void read(uint16_t, uint16_t);
 void blank(uint16_t, uint16_t);
 void write(uint16_t, uint8_t);
 uint8_t read(uint16_t);
+void dataPolling(uint16_t, uint8_t);
 
 // CORE FUNCTIONS
 void setDataBusInput()
@@ -100,6 +101,24 @@ void setAddress(uint16_t addr)
 
     // Raise the Latch to latch on the output pins of the shift registers
     PORTB |= (1 << STCP);
+}
+
+void dataPolling(uint16_t addr, uint8_t data)
+{
+    setDataBusInput();
+    PORTC &= ~(1 << OE); // OE LOW (Active)
+    PORTC |= (1 << WE);  // WE HIGH (Inactive)
+    data = data & 0x80;
+    setAddress(addr);
+    uint8_t read = 0;
+    do
+    {
+        PORTC &= ~(1 << OE);
+        __asm__("nop");
+        // Read the data from the Data Bus (D2-D7, D8-D9)
+        read = ((PINB << 6) & 0x80); // Only filter the MSB
+        PORTC |= (1 << OE);
+    } while (data != read);
 }
 
 // BASIC FUNCTIONS
@@ -143,9 +162,10 @@ int8_t pageWrite(uint16_t startAddr, uint8_t *data, uint8_t length)
     for (; bytesWritten < length; bytesWritten++)
         writeRaw(startAddr + bytesWritten, data[bytesWritten]);
 
-    delay(11);          // tWC = 10ms
+    bytesWritten--;
+    dataPolling(startAddr + bytesWritten, data[bytesWritten]);
     PORTC |= (1 << CE); // CE HIGH (Inactive)
-    return bytesWritten;
+    return bytesWritten + 1;
 }
 
 // UTILITY FUNCTIONS
@@ -163,7 +183,7 @@ void SDPUnlock()
     writeRaw(0x5555, 0xAA);
     writeRaw(0x2AAA, 0x55);
     writeRaw(0x5555, 0x20);
-    delay(11);
+    delay(11);          // tWC = 10ms
     PORTC |= (1 << CE); // CE HIGH (Inactive)
 }
 
@@ -184,7 +204,7 @@ void SDPlock()
     writeRaw(0x2AAA, 0x55);
     writeRaw(0x5555, 0xA0);
     writeRaw(0x0000, data);
-    delay(11);          // tWC = 10ms
+    dataPolling(0x0000, data);
     PORTC |= (1 << CE); // CE HIGH (Inactive)
 }
 
@@ -272,7 +292,7 @@ void blank(uint16_t start = 0x0000, uint16_t stop = 0x7fff)
         for (; start < stop && (start % 64) != 0; start++)
         {
             writeRaw(start, 0xFF);
-            delay(11); // tWC = 10ms
+            dataPolling(start, 0xFF);
         }
     }
 
@@ -282,7 +302,7 @@ void blank(uint16_t start = 0x0000, uint16_t stop = 0x7fff)
         for (; stop > start && (stop % 64) != 63; stop--)
         {
             writeRaw(stop, 0xFF);
-            delay(11); // tWC = 10ms
+            dataPolling(stop, 0xFF);
         }
     }
 
@@ -316,7 +336,7 @@ void write(uint16_t addr, uint8_t data)
     PORTC |= (1 << OE); // OE HIGH (Inactive)
     PORTC |= (1 << WE); // WE HIGH (Inactive)
     writeRaw(addr, data);
-    delay(11);          // tWC = 10ms
+    dataPolling(addr, data);
     PORTC |= (1 << CE); // CE HIGH (Inactive)
 }
 
@@ -427,7 +447,6 @@ void setup()
     Serial.begin(115200);
     while (!Serial)
         ;
-    delay(2000); // Give the user a moment to open the Serial Monitor
     Serial.println("System Starting...");
 
     // Setting Up Hardware SPI
@@ -448,11 +467,11 @@ void loop()
     while (Serial.available() > 0)
     {
         char cmd = Serial.read();
-        // v-> version, b -> blank, r -> read, w -> write, R -> sys read, d -> disable, e-> enable
+        // v-> version, b -> blank, r -> read, w -> write, R -> sys read, d -> disable lock, e-> enable lock
         switch (cmd)
         {
         case 'v':
-            Serial.println("NitroBurner v1.0 --- Active");
+            Serial.println("NitroBurner v1.1 --- Active");
             break;
         case 'b':
             blank();
