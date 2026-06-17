@@ -108,17 +108,20 @@ void dataPolling(uint16_t addr, uint8_t data)
     setDataBusInput();
     PORTC &= ~(1 << OE); // OE LOW (Active)
     PORTC |= (1 << WE);  // WE HIGH (Inactive)
-    data = data & 0x80;
+    uint8_t currentState = ((data & 0x40) >> 6);
+    data = (data >> 7);
     setAddress(addr);
-    uint8_t read = 0;
+    uint8_t read, prevState = currentState;
     do
     {
+        prevState = currentState;
         PORTC &= ~(1 << OE);
         __asm__("nop");
         // Read the data from the Data Bus (D2-D7, D8-D9)
-        read = ((PINB << 6) & 0x80); // Only filter the MSB
+        read = ((PINB >> 1) & 0x01); // Only filter the D7
+        currentState = (PINB & 0x01); // Only filter D6
         PORTC |= (1 << OE);
-    } while (data != read);
+    } while ((data != read)||(prevState!=currentState));
 }
 
 // BASIC FUNCTIONS
