@@ -455,7 +455,7 @@ void setup()
     // Setting Up Hardware SPI
     DDRB |= 0b00101100; // Set D10 (SS), D11 (MOSI), D13 (SCK) as OUTPUT ADDR PINS
     SPCR = 0b01010001;  // SPE = 1 (Enable SPI), MSTR = 1 (Master Mode), Clock = F_osc/16 = 1MHz
-    SPSR = 0x00;        // SPI2X = 0
+    SPSR = (0 << SPI2X);// SPI2X = 0
 
     setAddress(0x0000); // Clear any garbage on the shift registers
 
