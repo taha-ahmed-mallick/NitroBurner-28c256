@@ -103,6 +103,7 @@ void setAddress(uint16_t addr)
     PORTB |= (1 << STCP);
 }
 
+// uses data polling and toggle bit to verify the completion of a write operation
 void writeCompleteCheck(uint16_t addr, uint8_t data)
 {
     setDataBusInput();
@@ -115,13 +116,12 @@ void writeCompleteCheck(uint16_t addr, uint8_t data)
     do
     {
         prevState = currentState;
-        PORTC &= ~(1 << OE);
+        PORTC &= ~(1 << OE); // OE LOW (Active)
         __asm__("nop");
-        // Read the data from the Data Bus (D2-D7, D8-D9)
-        read = ((PINB >> 1) & 0x01); // Only filter the D7
+        read = ((PINB >> 1) & 0x01);  // Only filter the D7
         currentState = (PINB & 0x01); // Only filter D6
-        PORTC |= (1 << OE);
-    } while ((data != read)||(prevState!=currentState));
+        PORTC |= (1 << OE);           // OE HIGH (Inactive)
+    } while ((data != read) || (prevState != currentState));
 }
 
 // BASIC FUNCTIONS
@@ -156,9 +156,9 @@ int8_t pageWrite(uint16_t startAddr, uint8_t *data, uint8_t length)
     if (length == 0 || length > 64)
         return -2; // Invalid length
 
+    PORTC |= (1 << OE); // OE HIGH (Inactive)
+    PORTC |= (1 << WE); // WE HIGH (Inactive)
     setDataBusOutput();
-    PORTC |= (1 << OE);  // OE HIGH (Inactive)
-    PORTC |= (1 << WE);  // WE HIGH (Inactive)
     PORTC &= ~(1 << CE); // CE LOW (Active)
 
     uint8_t bytesWritten = 0;
@@ -174,10 +174,10 @@ int8_t pageWrite(uint16_t startAddr, uint8_t *data, uint8_t length)
 // UTILITY FUNCTIONS
 void SDPUnlock()
 {
-    PORTC &= ~(1 << CE); // CE LOW (Active)
-    setDataBusOutput();
     PORTC |= (1 << OE); // OE HIGH (Inactive)
     PORTC |= (1 << WE); // WE HIGH (Inactive)
+    setDataBusOutput();
+    PORTC &= ~(1 << CE); // CE LOW (Active)
 
     // unlock sequence
     writeRaw(0x5555, 0xAA);
@@ -213,8 +213,8 @@ void SDPlock()
 
 void read(uint16_t start, uint16_t stop)
 {
-    PORTC &= ~(1 << CE); // CE LOW (Active)
     setDataBusInput();
+    PORTC &= ~(1 << CE); // CE LOW (Active)
     PORTC |= (1 << WE);  // WE HIGH (Inactive)
     PORTC &= ~(1 << OE); // OE LOW (Active)
 
@@ -271,16 +271,16 @@ void read(uint16_t start, uint16_t stop)
             }
         }
     }
-    PORTC |= (1 << CE);                                                          // CE HIGH (Inactive)                                                     // CE HIGH (Inactive)
+    PORTC |= (1 << CE);
     Serial.println("======================Read Complete======================"); // Final newline after reading is done
 }
 
 void blank(uint16_t start = 0x0000, uint16_t stop = 0x7fff)
 {
     PORTC &= ~(1 << CE); // CE LOW (Active)
+    PORTC |= (1 << OE);  // OE HIGH (Inactive)
+    PORTC |= (1 << WE);  // WE HIGH (Inactive)
     setDataBusOutput();
-    PORTC |= (1 << OE); // OE HIGH (Inactive)
-    PORTC |= (1 << WE); // WE HIGH (Inactive)
 
     uint16_t totalBytes = stop - start + 1;
     int barWidth = 40, pos = 0; // Blanking: [/40/] 000%
@@ -335,9 +335,9 @@ void blank(uint16_t start = 0x0000, uint16_t stop = 0x7fff)
 void write(uint16_t addr, uint8_t data)
 {
     PORTC &= ~(1 << CE); // CE LOW (Active)
-    setDataBusOutput();
     PORTC |= (1 << OE); // OE HIGH (Inactive)
     PORTC |= (1 << WE); // WE HIGH (Inactive)
+    setDataBusOutput();
     writeRaw(addr, data);
     writeCompleteCheck(addr, data);
     PORTC |= (1 << CE); // CE HIGH (Inactive)
@@ -453,9 +453,9 @@ void setup()
     Serial.println("System Starting...");
 
     // Setting Up Hardware SPI
-    DDRB |= 0b00101100; // Set D10 (SS), D11 (MOSI), D13 (SCK) as OUTPUT ADDR PINS
-    SPCR = 0b01010001;  // SPE = 1 (Enable SPI), MSTR = 1 (Master Mode), Clock = F_osc/16 = 1MHz
-    SPSR = (0 << SPI2X);// SPI2X = 0
+    DDRB |= 0b00101100;  // Set D10 (SS), D11 (MOSI), D13 (SCK) as OUTPUT ADDR PINS
+    SPCR = 0b01010001;   // SPE = 1 (Enable SPI), MSTR = 1 (Master Mode), Clock = F_osc/16 = 1MHz
+    SPSR = (0 << SPI2X); // SPI2X = 0
 
     setAddress(0x0000); // Clear any garbage on the shift registers
 
