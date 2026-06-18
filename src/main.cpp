@@ -62,7 +62,7 @@ void read(uint16_t, uint16_t);
 void blank(uint16_t, uint16_t);
 void write(uint16_t, uint8_t);
 uint8_t read(uint16_t);
-void dataPolling(uint16_t, uint8_t);
+void writeCompleteCheck(uint16_t, uint8_t);
 
 // CORE FUNCTIONS
 void setDataBusInput()
@@ -103,7 +103,7 @@ void setAddress(uint16_t addr)
     PORTB |= (1 << STCP);
 }
 
-void dataPolling(uint16_t addr, uint8_t data)
+void writeCompleteCheck(uint16_t addr, uint8_t data)
 {
     setDataBusInput();
     PORTC &= ~(1 << OE); // OE LOW (Active)
@@ -166,7 +166,7 @@ int8_t pageWrite(uint16_t startAddr, uint8_t *data, uint8_t length)
         writeRaw(startAddr + bytesWritten, data[bytesWritten]);
 
     bytesWritten--;
-    dataPolling(startAddr + bytesWritten, data[bytesWritten]);
+    writeCompleteCheck(startAddr + bytesWritten, data[bytesWritten]);
     PORTC |= (1 << CE); // CE HIGH (Inactive)
     return bytesWritten + 1;
 }
@@ -207,7 +207,7 @@ void SDPlock()
     writeRaw(0x2AAA, 0x55);
     writeRaw(0x5555, 0xA0);
     writeRaw(0x0000, data);
-    dataPolling(0x0000, data);
+    writeCompleteCheck(0x0000, data);
     PORTC |= (1 << CE); // CE HIGH (Inactive)
 }
 
@@ -295,7 +295,7 @@ void blank(uint16_t start = 0x0000, uint16_t stop = 0x7fff)
         for (; start < stop && (start % 64) != 0; start++)
         {
             writeRaw(start, 0xFF);
-            dataPolling(start, 0xFF);
+            writeCompleteCheck(start, 0xFF);
         }
     }
 
@@ -305,7 +305,7 @@ void blank(uint16_t start = 0x0000, uint16_t stop = 0x7fff)
         for (; stop > start && (stop % 64) != 63; stop--)
         {
             writeRaw(stop, 0xFF);
-            dataPolling(stop, 0xFF);
+            writeCompleteCheck(stop, 0xFF);
         }
     }
 
@@ -339,7 +339,7 @@ void write(uint16_t addr, uint8_t data)
     PORTC |= (1 << OE); // OE HIGH (Inactive)
     PORTC |= (1 << WE); // WE HIGH (Inactive)
     writeRaw(addr, data);
-    dataPolling(addr, data);
+    writeCompleteCheck(addr, data);
     PORTC |= (1 << CE); // CE HIGH (Inactive)
 }
 
